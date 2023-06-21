@@ -41,7 +41,7 @@ inputs.on('connection', (socket) => {
   //listen for this client to disconnect
   socket.on('disconnect', () => {
     console.log('input client disconnected: ' + socket.id);
-    delete players[socket.id]; //TODO check to see if throws syntax error if strict https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/delete
+    // delete players[socket.id]; //TODO check to see if throws syntax error if strict https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/delete
   });
 
 });
