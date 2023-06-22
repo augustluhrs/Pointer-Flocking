@@ -22,7 +22,7 @@ socket.on('connect', () => {
 
 let flock = []; //the array of all pointers in the flock
 let flockSize; //the quantity of pointers in the flock
-let pointerSize = 15; //more or less exact size of my pointer, could fluctuate randomly TODO
+let pointerSize = 18; //more or less exact size of my pointer, could fluctuate randomly TODO
 
 //variables for storing and adjusting flocking options
 let sliders = []; //overkill to store in array, but w/e, i love arrays
@@ -36,10 +36,18 @@ let flockParams = {
   separationBias: 20, //how much they should want to be apart
   alignmentBias: 1, //how much they should want to move in the same direction
   cohesionBias: 0.2, //how much they should want to be close together
-  seekBias: 1, //how much they should want to follow the mouse
+  seekBias: 1, //how much they should want to follow the mouse/nose
   flockSize: 50, //quantity of pointers
   trailAmount: 50, //the transparency of the background (adds trail)
 }
+
+//posenet stuff
+let demoMode = true; //false when clouds, true when webcam
+let demoCheckbox; //a checkbox for changing from mouse seek to nose seek
+let video;
+let poseNet;
+let poses = [];
+let nosePos;
 
 //
 //  ASSET LOAD
@@ -52,9 +60,9 @@ let cloudColor; //stores the color we're tinting the clouds
 let font; // the custom font
 
 function preload() {
-  pointer = loadImage("assets/images/pointer.png");
-  clouds = loadImage("assets/images/clouds.jpg");
-  font = loadFont("assets/fonts/MochiyPopOne-Regular.ttf");
+  pointer = loadImage("../assets/images/pointer.png");
+  clouds = loadImage("../assets/images/clouds.jpg");
+  font = loadFont("../assets/fonts/MochiyPopOne-Regular.ttf");
 }
 
 
@@ -107,7 +115,7 @@ function setup(){
   
   //create the flock
   for(i = 0; i < flockParams.flockSize; i++){
-    let boidSize = random(pointerSize - 8, pointerSize + 8); //random size for each pointer
+    let boidSize = random(pointerSize - 10, pointerSize + 8); //random size for each pointer
     let boidPos = createVector(random(0, width), random(0, height)); //storing position in a 2D Vector, TODO: use normalized (between 0-1) values for X and Y position so it scales to diff screen sizes
     let boidSpeed = random(-5, 5) + flockParams.maxSpeed; //slight variation in speed;
     
@@ -117,6 +125,28 @@ function setup(){
   
   //font scale 
   textSize(sliderWidth/8); 
+  
+  //poseNet
+  nosePos = createVector(width/2,height/2);
+  video = createCapture(VIDEO);
+  video.size(width, height);
+  // Create a new poseNet method with a single detection
+  poseNet = ml5.poseNet(video, modelReady);
+  // This sets up an event that fills the global variable "poses"
+  // with an array every time new poses are detected
+  poseNet.on('pose', function(results) {
+    poses = results;
+    //need to get the xy of the nose
+    nosePos.x = poses[0].pose.keypoints[0].position.x;
+    nosePos.y = poses[0].pose.keypoints[0].position.y;
+
+  });
+  video.hide();
+  
+  //switches between demo modes
+  demoCheckbox = createCheckbox("WEBCAM DEMO MODE", true);
+  demoCheckbox.changed(()=>{demoMode = !demoMode});
+  demoCheckbox.position(width/2, (height/15) * 13);
 } 
 
 //
@@ -127,30 +157,30 @@ function draw() {
   // background("#93a808"); //not using background
   push(); //isolates the changes to just whatever comes before pop()
   tint(cloudColor);
-  image(clouds, width/2, height/2, width, height); //using half the value of the dimensions because we're drawing the image from the center of the image, not the corner
-
+  if (!demoMode){
+    image(clouds, width/2, height/2, width, height); //using half the value of the dimensions because we're drawing the image from the center of the image, not the corner
+  } else {
+    image(video, width/2, height/2, width, height);
+  }
   
   pop();
   image(pointer, mouseX + 3, mouseY + 5, pointerSize - 5, pointerSize - 5); //so we get a trail of our own pointer, size a little off rn
   
   //have the pointers look at the flock and the mouse, update each pointer, and then draw each pointer
-  let mousePos = createVector(mouseX, mouseY);
-
+  //unless webcam mode on, then do the same but for nose
+  let mousePos;
+  if (demoMode){
+    mousePos = nosePos;
+  } else {
+    mousePos = createVector(mouseX, mouseY);
+  }
   for (let boid of flock){
     boid.flock(flock, mousePos);
   }
-  push();
-  stroke(0);
   for (let boid of flock){
     boid.update();
-    strokeWeight(boid.size/8);
-    boid.show();
-    // push();
-    // tint(boid.color);
-    // image(pointer, boid.pos.x, boid.pos.y, boid.size, boid.size);
-    // pop();
+    image(pointer, boid.pos.x, boid.pos.y, boid.size, boid.size);
   }
-  pop();
   
   // labels for the sliders -- layout super weird rn
   push();
@@ -204,10 +234,18 @@ function updateParams(){ //anytime a slider value is changed, update all the poi
   }
 }
 
+function modelReady(){
+  console.log("model ready");
+}
+
 //
 //  MOUSE FUNCTIONS
 //
 
+// for clicking speed UI
+function mouseClicked(){
+  
+}
 
 //
 //  SHOW FUNCTIONS

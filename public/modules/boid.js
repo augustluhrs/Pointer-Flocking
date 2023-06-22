@@ -12,6 +12,9 @@ class Boid{
     this.alignmentBias = _flockParams.alignmentBias;
     this.cohesionBias = _flockParams.cohesionBias;
     this.seekBias = _flockParams.seekBias;
+
+    this.step = this.size/3; // just for drawing pointer;
+    this.color = color(floor(random(0, 360)), random(150,255), random(150, 255));
   }
   
   flock(_flock, _mousePos){
@@ -19,13 +22,38 @@ class Boid{
     //add all changes to velocity, which will apply in update
     //will check all pointers in flock, though might get too expensive with more pointers
     let neighbors = [];
+    let closest = [];
     for (let boid of _flock){
-      if (this.pos.dist(boid.pos) <= this.perceptionRadius){
+      let d = this.pos.dist(boid.pos);
+      if (d <= this.perceptionRadius){
         //if the other pointer is close enough, add to the array that gets checked
         neighbors.push(boid);
+
+        if (d <= this.perceptionRadius / 2 && closest.length < 12){
+          //close enough to skew hue
+          closest.push(hue(boid.color));
+        }
+      }
+    }
+
+    //of closest neighbors, adjust color towards median hue
+    //sort hues
+    if (closest.length > 0){
+      closest.push(hue(this.color));
+      closest.sort((a,b)=>(a-b));
+      let median = closest[floor(closest.length/2)];
+      let sat = saturation(this.color);
+      let bri = brightness(this.color);
+      let newHue = lerpColor(this.color, color(median, sat, bri), 0.01);
+      let mutation = random();
+      if (mutation < 0.001){
+        this.color = color(random(0,360), sat, bri);
+      } else {
+        this.color = color(newHue, sat, bri);
       }
     }
     
+
     let separation = this.separation(neighbors);
     let alignment = this.alignment(neighbors);
     let cohesion = this.cohesion(neighbors);
@@ -141,5 +169,25 @@ class Boid{
     this.vel.add(this.acc); //add the current forces to velocity
     this.vel.limit(this.maxSpeed); //make sure we're not going too fast
     this.acc.mult(0); //reset the forces for the next flock loop
+  }
+
+  show(){
+    //drawing pointer manually now because tint is too crazy, have to use fill
+    let step = this.step;
+    let x = this.pos.x;
+    let y = this.pos.y;
+    push();
+    // fill(0, 0, 255);
+    fill(this.color);
+    beginShape();
+    vertex(x - (step / 3), y); // 1
+    vertex(x + (step / 3), y + (step * 1.75)); // 2
+    vertex(x - (step / 3), y + (step * 2)); // 3
+    vertex(x - step, y + (step / 3)); // 4
+    vertex(x - (step * 2), y + step); // 5
+    vertex(x - (step * 2), y - (step * 3)); // 6
+    vertex(x + step, y); // 7
+    endShape(CLOSE);
+    pop();
   }
 }
